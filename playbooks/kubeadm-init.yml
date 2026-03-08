@@ -62,6 +62,19 @@
         group: vagrant
         mode: "0755"
 
+    - name: Install local-path-provisioner StorageClass
+      become_user: vagrant
+      ansible.builtin.shell: |
+        kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.26/deploy/local-path-storage.yaml
+      args:
+        creates: /var/local-path-provisioner
+
+    - name: Set local-path as default StorageClass
+      become_user: vagrant
+      ansible.builtin.shell: |
+        kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+      changed_when: true
+
     - name: Fetch kubeconfig to local
       ansible.builtin.fetch:
         src: /etc/kubernetes/admin.conf
