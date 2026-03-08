@@ -1,0 +1,168 @@
+---
+# Phase 6: 全面驗證所有已部署的元件
+- name: Verify all platform components
+  hosts: mgmt
+  become: false
+  tasks:
+    # --- 基礎 K8s ---
+    - name: "[K8s] 檢查節點狀態"
+      ansible.builtin.shell: kubectl get nodes -o wide
+      register: nodes_status
+      changed_when: false
+
+    - name: "[K8s] 顯示節點狀態"
+      ansible.builtin.debug:
+        msg: "{{ nodes_status.stdout_lines }}"
+
+    - name: "[K8s] 檢查所有 namespace"
+      ansible.builtin.shell: kubectl get namespaces
+      register: namespaces
+      changed_when: false
+
+    - name: "[K8s] 顯示 namespaces"
+      ansible.builtin.debug:
+        msg: "{{ namespaces.stdout_lines }}"
+
+    # --- CNI ---
+    - name: "[Cilium] 檢查 Cilium 狀態"
+      ansible.builtin.shell: kubectl get pods -n kube-system -l app.kubernetes.io/name=cilium-agent -o wide
+      register: cilium_status
+      changed_when: false
+      failed_when: false
+
+    - name: "[Cilium] 顯示狀態"
+      ansible.builtin.debug:
+        msg: "{{ cilium_status.stdout_lines }}"
+
+    # --- Ingress ---
+    - name: "[MetalLB] 檢查 MetalLB"
+      ansible.builtin.shell: kubectl get pods -n metallb-system
+      register: metallb_status
+      changed_when: false
+      failed_when: false
+
+    - name: "[Traefik] 檢查 Traefik"
+      ansible.builtin.shell: kubectl get pods -n traefik
+      register: traefik_status
+      changed_when: false
+      failed_when: false
+
+    - name: "[Cert-Manager] 檢查 Cert-Manager"
+      ansible.builtin.shell: kubectl get pods -n cert-manager
+      register: certmanager_status
+      changed_when: false
+      failed_when: false
+
+    # --- 監控 ---
+    - name: "[Monitoring] 檢查 Prometheus Stack"
+      ansible.builtin.shell: kubectl get pods -n monitoring
+      register: monitoring_status
+      changed_when: false
+      failed_when: false
+
+    - name: "[Monitoring] 顯示狀態"
+      ansible.builtin.debug:
+        msg: "{{ monitoring_status.stdout_lines }}"
+
+    # --- 安全 ---
+    - name: "[Security] 檢查 Gatekeeper"
+      ansible.builtin.shell: kubectl get pods -n gatekeeper-system
+      register: gatekeeper_status
+      changed_when: false
+      failed_when: false
+
+    - name: "[Security] 檢查 Gatekeeper Constraints"
+      ansible.builtin.shell: kubectl get constraints
+      register: constraints_status
+      changed_when: false
+      failed_when: false
+
+    - name: "[Security] 檢查 Trivy Operator"
+      ansible.builtin.shell: kubectl get pods -n trivy-system
+      register: trivy_status
+      changed_when: false
+      failed_when: false
+
+    - name: "[Security] 檢查 Polaris"
+      ansible.builtin.shell: kubectl get pods -n polaris
+      register: polaris_status
+      changed_when: false
+      failed_when: false
+
+    # --- GitOps ---
+    - name: "[GitOps] 檢查 Flux CD"
+      ansible.builtin.shell: kubectl get pods -n flux-system
+      register: flux_status
+      changed_when: false
+      failed_when: false
+
+    # --- Registry ---
+    - name: "[Registry] 檢查 Harbor"
+      ansible.builtin.shell: kubectl get pods -n harbor
+      register: harbor_status
+      changed_when: false
+      failed_when: false
+
+    # --- Backup ---
+    - name: "[Backup] 檢查 Velero"
+      ansible.builtin.shell: kubectl get pods -n velero
+      register: velero_status
+      changed_when: false
+      failed_when: false
+
+    - name: "[Backup] 檢查 MinIO"
+      ansible.builtin.shell: kubectl get pods -n minio
+      register: minio_status
+      changed_when: false
+      failed_when: false
+
+    # --- 範例應用 ---
+    - name: "[App] 部署範例應用"
+      ansible.builtin.shell: kubectl apply -f /vagrant/manifests/sample-app/
+      changed_when: true
+
+    - name: "[App] 等待範例應用就緒"
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=available deployment/sample-web \
+          -n sample-app --timeout=120s
+      changed_when: false
+      failed_when: false
+
+    - name: "[App] 檢查範例應用狀態"
+      ansible.builtin.shell: kubectl get pods -n sample-app -o wide
+      register: app_status
+      changed_when: false
+      failed_when: false
+
+    # --- 總結報告 ---
+    - name: "=== 驗證報告總結 ==="
+      ansible.builtin.debug:
+        msg: |
+          ╔══════════════════════════════════════════════════════╗
+          ║          NKP PoC 方案 B - 驗證報告                   ║
+          ╠══════════════════════════════════════════════════════╣
+          ║ 元件              │ 狀態                             ║
+          ╠══════════════════════════════════════════════════════╣
+          ║ K8s Nodes         │ {{ 'OK' if nodes_status.rc == 0 else 'FAIL' }}                              ║
+          ║ Cilium CNI        │ {{ 'OK' if cilium_status.rc == 0 else 'FAIL' }}                              ║
+          ║ MetalLB           │ {{ 'OK' if metallb_status.rc == 0 else 'FAIL' }}                              ║
+          ║ Traefik           │ {{ 'OK' if traefik_status.rc == 0 else 'FAIL' }}                              ║
+          ║ Cert-Manager      │ {{ 'OK' if certmanager_status.rc == 0 else 'FAIL' }}                              ║
+          ║ Prometheus+Grafana│ {{ 'OK' if monitoring_status.rc == 0 else 'FAIL' }}                              ║
+          ║ OPA Gatekeeper    │ {{ 'OK' if gatekeeper_status.rc == 0 else 'FAIL' }}                              ║
+          ║ Trivy Operator    │ {{ 'OK' if trivy_status.rc == 0 else 'FAIL' }}                              ║
+          ║ Polaris           │ {{ 'OK' if polaris_status.rc == 0 else 'FAIL' }}                              ║
+          ║ Flux CD           │ {{ 'OK' if flux_status.rc == 0 else 'FAIL' }}                              ║
+          ║ Harbor            │ {{ 'OK' if harbor_status.rc == 0 else 'FAIL' }}                              ║
+          ║ Velero            │ {{ 'OK' if velero_status.rc == 0 else 'FAIL' }}                              ║
+          ║ MinIO             │ {{ 'OK' if minio_status.rc == 0 else 'FAIL' }}                              ║
+          ║ Sample App        │ {{ 'OK' if app_status.rc == 0 else 'FAIL' }}                              ║
+          ╚══════════════════════════════════════════════════════╝
+
+          存取服務:
+          - Grafana:  kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring
+          - Traefik:  kubectl port-forward svc/traefik 9000:9000 -n traefik
+          - Harbor:   kubectl port-forward svc/harbor-portal 8443:443 -n harbor
+          - Polaris:  kubectl port-forward svc/polaris-dashboard 8080:80 -n polaris
+          - Hubble:   kubectl port-forward svc/hubble-ui 12000:80 -n kube-system
+          - Sample:   curl http://sample.192.168.56.10.nip.io

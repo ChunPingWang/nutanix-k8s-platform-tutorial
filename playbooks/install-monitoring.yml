@@ -1,0 +1,40 @@
+---
+# 安裝可觀測性元件：Prometheus + Grafana + Loki
+- name: Install Monitoring Stack
+  hosts: mgmt
+  become: false
+  tasks:
+    - name: Add Helm repos for monitoring
+      ansible.builtin.shell: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts --force-update
+        helm repo add grafana https://grafana.github.io/helm-charts --force-update
+        helm repo update
+
+    - name: Create monitoring namespace
+      ansible.builtin.shell: kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install kube-prometheus-stack
+      ansible.builtin.shell: |
+        helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+          --namespace monitoring \
+          --values /vagrant/helm-values/prometheus-values.yaml \
+          --wait --timeout 10m
+
+    - name: Install Loki Stack (日誌收集)
+      ansible.builtin.shell: |
+        helm upgrade --install loki grafana/loki-stack \
+          --namespace monitoring \
+          --values /vagrant/helm-values/loki-values.yaml \
+          --wait --timeout 5m
+
+    - name: Wait for Grafana to be ready
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana \
+          -n monitoring --timeout=300s
+
+    - name: Print Grafana access info
+      ansible.builtin.debug:
+        msg: |
+          Grafana 已部署完成！
+          存取方式: kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring
+          預設帳密: admin / prom-operator

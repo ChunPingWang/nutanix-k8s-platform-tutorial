@@ -1,0 +1,49 @@
+---
+# Phase 4: 安裝 Cilium CNI 到所有叢集
+- name: Install Cilium CNI on Management Cluster
+  hosts: mgmt
+  become: false
+  vars:
+    values_file: "../helm-values/cilium-values.yaml"
+  tasks:
+    - name: Add Cilium Helm repo
+      ansible.builtin.shell: helm repo add cilium https://helm.cilium.io/ --force-update
+
+    - name: Update Helm repos
+      ansible.builtin.shell: helm repo update
+
+    - name: Install Cilium
+      ansible.builtin.shell: |
+        helm upgrade --install cilium cilium/cilium \
+          --namespace kube-system \
+          --values /vagrant/helm-values/cilium-values.yaml \
+          --wait --timeout 5m
+
+    - name: Wait for Cilium to be ready
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=cilium-agent \
+          -n kube-system --timeout=300s
+
+- name: Install Cilium CNI on Workload Cluster
+  hosts: workload-1
+  become: false
+  vars:
+    values_file: "../helm-values/cilium-values.yaml"
+  tasks:
+    - name: Add Cilium Helm repo
+      ansible.builtin.shell: helm repo add cilium https://helm.cilium.io/ --force-update
+
+    - name: Update Helm repos
+      ansible.builtin.shell: helm repo update
+
+    - name: Install Cilium
+      ansible.builtin.shell: |
+        helm upgrade --install cilium cilium/cilium \
+          --namespace kube-system \
+          --values /vagrant/helm-values/cilium-values.yaml \
+          --wait --timeout 5m
+
+    - name: Wait for Cilium to be ready
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=cilium-agent \
+          -n kube-system --timeout=300s

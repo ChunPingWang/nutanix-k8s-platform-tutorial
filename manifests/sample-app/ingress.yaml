@@ -1,0 +1,24 @@
+---
+# 透過 Traefik Ingress 暴露範例應用
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sample-web
+  namespace: sample-app
+  labels:
+    app.kubernetes.io/name: sample-web
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: sample.192.168.56.10.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sample-web
+                port:
+                  number: 80

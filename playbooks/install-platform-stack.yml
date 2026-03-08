@@ -1,0 +1,31 @@
+---
+# Phase 5: 安裝完整平台元件 (依序執行所有子 Playbook)
+#
+# 使用方式:
+#   ansible-playbook -i inventory/hosts.yml playbooks/install-platform-stack.yml
+#
+# 此 Playbook 會依序安裝以下元件：
+#   1. MetalLB + Traefik + Cert-Manager (Ingress 層)
+#   2. Prometheus + Grafana + Loki (可觀測性層)
+#   3. Gatekeeper + Trivy + Polaris (安全合規層)
+#   4. Flux CD (GitOps)
+#   5. Harbor (Image Registry)
+#   6. Velero + MinIO (備份/DR)
+
+- name: Install platform stack - Ingress layer
+  ansible.builtin.import_playbook: install-ingress.yml
+
+- name: Install platform stack - Monitoring layer
+  ansible.builtin.import_playbook: install-monitoring.yml
+
+- name: Install platform stack - Security layer
+  ansible.builtin.import_playbook: install-security.yml
+
+- name: Install platform stack - GitOps
+  ansible.builtin.import_playbook: install-gitops.yml
+
+- name: Install platform stack - Registry
+  ansible.builtin.import_playbook: install-registry.yml
+
+- name: Install platform stack - Backup/DR
+  ansible.builtin.import_playbook: install-backup.yml

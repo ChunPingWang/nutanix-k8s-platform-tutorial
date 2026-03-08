@@ -1,0 +1,24 @@
+# Vagrant
+.vagrant/
+*.retry
+
+# Kubeconfig (may contain secrets)
+kubeconfig/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Ansible
+*.retry
+
+# Temporary
+*.tmp
+*.log

@@ -1,0 +1,23 @@
+# Trivy Operator Helm Values
+# 對應 NKP 的 Trivy 弱點掃描元件
+
+# 掃描配置
+trivy:
+  severity: "CRITICAL,HIGH,MEDIUM"
+  ignoreUnfixed: true
+
+# 自動掃描
+operator:
+  scanJobTimeout: 5m
+  vulnerabilityScannerEnabled: true
+  configAuditScannerEnabled: true
+  rbacAssessmentScannerEnabled: true
+
+# 資源限制
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

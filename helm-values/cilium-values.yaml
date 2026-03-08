@@ -1,0 +1,42 @@
+# Cilium CNI Helm Values
+# 對應 NKP 的 Cilium CNI 元件
+
+# 啟用 Hubble (網路可觀測性)
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+
+# 使用 VXLAN 封裝模式 (VirtualBox 相容)
+tunnel: vxlan
+
+# IPAM 配置
+ipam:
+  mode: kubernetes
+
+# 啟用 Bandwidth Manager
+bandwidthManager:
+  enabled: false  # VirtualBox 不支援，僅在實體環境啟用
+
+# 啟用 Network Policy
+enableNetworkPolicy: true
+
+# 資源限制 (PoC 環境適度調低)
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+operator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi

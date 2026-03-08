@@ -1,0 +1,21 @@
+# Polaris Helm Values
+# 對應 NKP 的 Polaris 配置合規元件
+
+# 啟用 Dashboard
+dashboard:
+  enabled: true
+  service:
+    type: ClusterIP
+
+# 啟用 Webhook (強制合規)
+webhook:
+  enabled: false  # PoC 環境先用審計模式，不強制阻擋
+
+# 資源限制
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

@@ -1,0 +1,62 @@
+---
+# 安裝安全合規元件：Gatekeeper + Trivy + Polaris
+- name: Install Security Components
+  hosts: mgmt
+  become: false
+  tasks:
+    - name: Add Helm repos for security
+      ansible.builtin.shell: |
+        helm repo add gatekeeper https://open-policy-agent.github.io/gatekeeper/charts --force-update
+        helm repo add aqua https://aquasecurity.github.io/helm-charts/ --force-update
+        helm repo add fairwinds-stable https://charts.fairwinds.com/stable --force-update
+        helm repo update
+
+    # --- OPA Gatekeeper ---
+    - name: Create gatekeeper-system namespace
+      ansible.builtin.shell: kubectl create namespace gatekeeper-system --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install OPA Gatekeeper
+      ansible.builtin.shell: |
+        helm upgrade --install gatekeeper gatekeeper/gatekeeper \
+          --namespace gatekeeper-system \
+          --values /vagrant/helm-values/gatekeeper-values.yaml \
+          --wait --timeout 5m
+
+    - name: Wait for Gatekeeper to be ready
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=ready pod -l control-plane=controller-manager \
+          -n gatekeeper-system --timeout=300s
+
+    - name: Apply Gatekeeper policies
+      ansible.builtin.shell: |
+        kubectl apply -f /vagrant/manifests/gatekeeper-policies/
+
+    # --- Trivy Operator ---
+    - name: Create trivy-system namespace
+      ansible.builtin.shell: kubectl create namespace trivy-system --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install Trivy Operator
+      ansible.builtin.shell: |
+        helm upgrade --install trivy-operator aqua/trivy-operator \
+          --namespace trivy-system \
+          --values /vagrant/helm-values/trivy-values.yaml \
+          --wait --timeout 5m
+
+    # --- Polaris ---
+    - name: Create polaris namespace
+      ansible.builtin.shell: kubectl create namespace polaris --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install Polaris
+      ansible.builtin.shell: |
+        helm upgrade --install polaris fairwinds-stable/polaris \
+          --namespace polaris \
+          --values /vagrant/helm-values/polaris-values.yaml \
+          --wait --timeout 5m
+
+    - name: Print security components status
+      ansible.builtin.debug:
+        msg: |
+          安全元件已部署完成！
+          - OPA Gatekeeper: kubectl get constrainttemplates
+          - Trivy Operator: kubectl get vulnerabilityreports -A
+          - Polaris Dashboard: kubectl port-forward svc/polaris-dashboard 8080:80 -n polaris

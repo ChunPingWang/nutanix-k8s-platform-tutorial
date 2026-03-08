@@ -1,0 +1,143 @@
+---
+# Phase 3a: 初始化 Management Cluster (kubeadm)
+- name: Initialize Management Cluster
+  hosts: mgmt_cluster
+  become: true
+  vars:
+    cluster_name: mgmt-cluster
+  tasks:
+    - name: Check if cluster is already initialized
+      ansible.builtin.stat:
+        path: /etc/kubernetes/admin.conf
+      register: kubeadm_init_check
+
+    - name: Initialize kubeadm cluster
+      ansible.builtin.shell: |
+        kubeadm init \
+          --apiserver-advertise-address={{ ansible_host }} \
+          --pod-network-cidr={{ pod_network_cidr }} \
+          --service-cidr={{ service_cidr }} \
+          --node-name={{ inventory_hostname }} \
+          --kubernetes-version=stable-{{ kubernetes_version }}
+      when: not kubeadm_init_check.stat.exists
+      register: kubeadm_init_output
+
+    - name: Create .kube directory for vagrant user
+      ansible.builtin.file:
+        path: /home/vagrant/.kube
+        state: directory
+        owner: vagrant
+        group: vagrant
+        mode: "0755"
+
+    - name: Copy admin.conf to vagrant user
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/vagrant/.kube/config
+        remote_src: true
+        owner: vagrant
+        group: vagrant
+        mode: "0600"
+
+    - name: Install Helm
+      ansible.builtin.shell: |
+        curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+
+    - name: Generate join command
+      ansible.builtin.shell: kubeadm token create --print-join-command
+      register: join_command
+      changed_when: false
+
+    - name: Store join command
+      ansible.builtin.set_fact:
+        kubeadm_join_command: "{{ join_command.stdout }}"
+
+    - name: Save join command to file
+      ansible.builtin.copy:
+        content: "{{ join_command.stdout }}"
+        dest: /home/vagrant/join-command.sh
+        owner: vagrant
+        group: vagrant
+        mode: "0755"
+
+    - name: Fetch kubeconfig to local
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: "../kubeconfig/{{ cluster_name }}.conf"
+        flat: true
+
+# Phase 3b: 初始化 Workload Cluster
+- name: Initialize Workload Cluster Control Plane
+  hosts: workload-1
+  become: true
+  vars:
+    cluster_name: workload-cluster
+  tasks:
+    - name: Check if cluster is already initialized
+      ansible.builtin.stat:
+        path: /etc/kubernetes/admin.conf
+      register: kubeadm_init_check
+
+    - name: Initialize kubeadm cluster
+      ansible.builtin.shell: |
+        kubeadm init \
+          --apiserver-advertise-address={{ ansible_host }} \
+          --pod-network-cidr={{ pod_network_cidr }} \
+          --service-cidr={{ service_cidr }} \
+          --node-name={{ inventory_hostname }} \
+          --kubernetes-version=stable-{{ kubernetes_version }}
+      when: not kubeadm_init_check.stat.exists
+
+    - name: Create .kube directory for vagrant user
+      ansible.builtin.file:
+        path: /home/vagrant/.kube
+        state: directory
+        owner: vagrant
+        group: vagrant
+        mode: "0755"
+
+    - name: Copy admin.conf to vagrant user
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/vagrant/.kube/config
+        remote_src: true
+        owner: vagrant
+        group: vagrant
+        mode: "0600"
+
+    - name: Install Helm
+      ansible.builtin.shell: |
+        curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+
+    - name: Generate join command
+      ansible.builtin.shell: kubeadm token create --print-join-command
+      register: join_command
+      changed_when: false
+
+    - name: Store join command
+      ansible.builtin.set_fact:
+        kubeadm_join_command: "{{ join_command.stdout }}"
+
+    - name: Fetch kubeconfig to local
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: "../kubeconfig/{{ cluster_name }}.conf"
+        flat: true
+
+# Phase 3c: Worker 加入 Workload Cluster
+- name: Join workers to Workload Cluster
+  hosts: workload-2
+  become: true
+  tasks:
+    - name: Check if node already joined
+      ansible.builtin.stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_conf
+
+    - name: Join cluster
+      ansible.builtin.shell: "{{ hostvars['workload-1'].kubeadm_join_command }}"
+      when: not kubelet_conf.stat.exists

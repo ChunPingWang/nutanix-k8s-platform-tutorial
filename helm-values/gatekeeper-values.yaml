@@ -1,0 +1,34 @@
+# OPA Gatekeeper Helm Values
+# 對應 NKP 的 OPA Gatekeeper 策略引擎
+
+# 啟用審計功能
+auditInterval: 60
+constraintViolationsLimit: 20
+
+# 資源限制
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+audit:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# 啟用 Mutation webhooks
+enableMutation: true
+
+# 排除系統 namespace
+exemptNamespaces:
+  - kube-system
+  - gatekeeper-system
+  - cert-manager
+  - metallb-system

@@ -1,0 +1,48 @@
+---
+# Gatekeeper Policy: 要求容器必須設定資源限制
+# 對應 NKP 的資源管理合規功能
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8scontainerlimits
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sContainerLimits
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8scontainerlimits
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not container.resources.limits.cpu
+          msg := sprintf("容器 %v 必須設定 CPU limits", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not container.resources.limits.memory
+          msg := sprintf("容器 %v 必須設定 Memory limits", [container.name])
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sContainerLimits
+metadata:
+  name: require-resource-limits
+spec:
+  enforcementAction: warn  # PoC 環境使用 warn 模式
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+      - cert-manager
+      - metallb-system
+      - monitoring
+      - flux-system
+      - trivy-system
+      - polaris

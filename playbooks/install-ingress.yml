@@ -1,0 +1,65 @@
+---
+# 安裝 Ingress 與憑證管理：MetalLB + Traefik + Cert-Manager
+- name: Install Ingress Stack
+  hosts: mgmt
+  become: false
+  tasks:
+    - name: Add Helm repos
+      ansible.builtin.shell: |
+        helm repo add metallb https://metallb.github.io/metallb --force-update
+        helm repo add traefik https://traefik.github.io/charts --force-update
+        helm repo add jetstack https://charts.jetstack.io --force-update
+        helm repo update
+
+    # --- MetalLB (LoadBalancer for bare metal) ---
+    - name: Create metallb-system namespace
+      ansible.builtin.shell: kubectl create namespace metallb-system --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install MetalLB
+      ansible.builtin.shell: |
+        helm upgrade --install metallb metallb/metallb \
+          --namespace metallb-system \
+          --wait --timeout 5m
+
+    - name: Wait for MetalLB controller
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=controller \
+          -n metallb-system --timeout=300s
+
+    - name: Apply MetalLB IP address pool
+      ansible.builtin.shell: kubectl apply -f /vagrant/manifests/metallb-config.yaml
+
+    # --- Cert-Manager ---
+    - name: Create cert-manager namespace
+      ansible.builtin.shell: kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install Cert-Manager
+      ansible.builtin.shell: |
+        helm upgrade --install cert-manager jetstack/cert-manager \
+          --namespace cert-manager \
+          --values /vagrant/helm-values/cert-manager-values.yaml \
+          --wait --timeout 5m
+
+    - name: Wait for cert-manager webhook
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=webhook \
+          -n cert-manager --timeout=300s
+
+    # --- Traefik ---
+    - name: Create traefik namespace
+      ansible.builtin.shell: kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install Traefik
+      ansible.builtin.shell: |
+        helm upgrade --install traefik traefik/traefik \
+          --namespace traefik \
+          --values /vagrant/helm-values/traefik-values.yaml \
+          --wait --timeout 5m
+
+    - name: Print ingress info
+      ansible.builtin.debug:
+        msg: |
+          Ingress Stack 已部署完成！
+          - MetalLB: IP Pool {{ metallb_ip_range }}
+          - Traefik Dashboard: kubectl port-forward svc/traefik-dashboard 9000:9000 -n traefik
+          - Cert-Manager: kubectl get certificates -A

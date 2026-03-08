@@ -1,0 +1,35 @@
+# Loki Stack Helm Values
+# 對應 NKP 的 Fluent Bit 日誌收集元件
+
+# Loki 配置
+loki:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Fluent Bit (日誌收集器)
+fluent-bit:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Promtail (替代 Fluent Bit，二擇一)
+promtail:
+  enabled: false
+
+# Grafana 由 kube-prometheus-stack 管理
+grafana:
+  enabled: false

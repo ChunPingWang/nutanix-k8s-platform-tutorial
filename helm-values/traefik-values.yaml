@@ -1,0 +1,47 @@
+# Traefik Helm Values
+# 對應 NKP 的 Traefik Ingress Controller
+
+# 使用 LoadBalancer service type (搭配 MetalLB)
+service:
+  type: LoadBalancer
+
+# 啟用 Dashboard
+ingressRoute:
+  dashboard:
+    enabled: true
+
+# Ports 配置
+ports:
+  web:
+    port: 8000
+    exposedPort: 80
+    protocol: TCP
+  websecure:
+    port: 8443
+    exposedPort: 443
+    protocol: TCP
+    tls:
+      enabled: true
+
+# 日誌配置
+logs:
+  general:
+    level: INFO
+  access:
+    enabled: true
+
+# 資源限制
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Providers
+providers:
+  kubernetesCRD:
+    enabled: true
+  kubernetesIngress:
+    enabled: true

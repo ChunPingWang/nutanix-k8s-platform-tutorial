@@ -1,0 +1,33 @@
+---
+# 安裝 Harbor Registry
+- name: Install Harbor Registry
+  hosts: mgmt
+  become: false
+  tasks:
+    - name: Add Harbor Helm repo
+      ansible.builtin.shell: |
+        helm repo add harbor https://helm.goharbor.io --force-update
+        helm repo update
+
+    - name: Create harbor namespace
+      ansible.builtin.shell: kubectl create namespace harbor --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install Harbor
+      ansible.builtin.shell: |
+        helm upgrade --install harbor harbor/harbor \
+          --namespace harbor \
+          --values /vagrant/helm-values/harbor-values.yaml \
+          --wait --timeout 10m
+
+    - name: Wait for Harbor core to be ready
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=ready pod -l app=harbor,component=core \
+          -n harbor --timeout=600s
+
+    - name: Print Harbor access info
+      ansible.builtin.debug:
+        msg: |
+          Harbor Registry 已部署完成！
+          存取方式: kubectl port-forward svc/harbor-portal 8443:443 -n harbor
+          預設帳密: admin / Harbor12345
+          推送映像: docker tag <image> harbor.{{ base_domain }}/<project>/<image>:<tag>

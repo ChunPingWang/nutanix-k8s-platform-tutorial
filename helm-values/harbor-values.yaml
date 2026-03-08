@@ -1,0 +1,68 @@
+# Harbor Helm Values
+# 對應 NKP 的 Harbor Image Registry
+
+expose:
+  type: clusterIP
+  tls:
+    enabled: false  # PoC 環境簡化，使用 HTTP
+
+externalURL: http://harbor.192.168.56.10.nip.io
+
+# 管理員密碼
+harborAdminPassword: "Harbor12345"
+
+# 持久化存儲
+persistence:
+  enabled: true
+  persistentVolumeClaim:
+    registry:
+      size: 20Gi
+    database:
+      size: 5Gi
+    redis:
+      size: 1Gi
+    trivy:
+      size: 5Gi
+
+# 資源限制 (PoC 適度調低)
+core:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+portal:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+registry:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# 啟用 Trivy 漏洞掃描
+trivy:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# 停用 Notary (PoC 簡化)
+notary:
+  enabled: false

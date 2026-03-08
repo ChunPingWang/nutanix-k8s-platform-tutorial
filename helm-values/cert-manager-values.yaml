@@ -1,0 +1,39 @@
+# Cert-Manager Helm Values
+# 對應 NKP 的 Cert-Manager 憑證管理元件
+
+# 安裝 CRD
+crds:
+  enabled: true
+
+# 資源限制
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+webhook:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+cainjector:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Prometheus 監控整合
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: true

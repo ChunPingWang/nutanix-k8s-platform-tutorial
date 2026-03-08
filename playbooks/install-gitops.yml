@@ -1,0 +1,40 @@
+---
+# 安裝 GitOps：Flux CD
+- name: Install Flux CD
+  hosts: mgmt
+  become: false
+  tasks:
+    - name: Install Flux CLI
+      ansible.builtin.shell: |
+        curl -s https://fluxcd.io/install.sh | bash
+      args:
+        creates: /usr/local/bin/flux
+      become: true
+
+    - name: Check Flux prerequisites
+      ansible.builtin.shell: flux check --pre
+      register: flux_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display Flux prerequisites result
+      ansible.builtin.debug:
+        msg: "{{ flux_check.stdout }}"
+
+    - name: Install Flux controllers (without Git repo connection)
+      ansible.builtin.shell: |
+        flux install --components-extra=image-reflector-controller,image-automation-controller
+
+    - name: Wait for Flux controllers
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=ready pod -l app=source-controller \
+          -n flux-system --timeout=300s
+
+    - name: Print Flux info
+      ansible.builtin.debug:
+        msg: |
+          Flux CD 已部署完成！
+          - 查看 Flux 狀態: flux check
+          - 連接 Git Repo: flux create source git <name> --url=<repo-url> --branch=main
+          - 建立 Kustomization: flux create kustomization <name> --source=<name> --path=./clusters/mgmt
+          注意：請手動設定 Git Repository 連接，因為需要 Git credentials

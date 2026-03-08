@@ -1,0 +1,8 @@
+---
+# Phase 2: 基礎 OS 配置
+# 在所有 K8s 節點上執行通用配置
+- name: Base OS setup for all Kubernetes nodes
+  hosts: k8s_nodes
+  become: true
+  roles:
+    - common

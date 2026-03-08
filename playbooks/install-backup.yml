@@ -1,0 +1,62 @@
+---
+# 安裝備份與 DR：Velero + MinIO
+- name: Install Backup and DR Components
+  hosts: mgmt
+  become: false
+  tasks:
+    - name: Add Helm repos
+      ansible.builtin.shell: |
+        helm repo add vmware-tanzu https://vmware-tanzu.github.io/helm-charts --force-update
+        helm repo add minio https://charts.min.io/ --force-update
+        helm repo update
+
+    # --- MinIO (S3-compatible storage for Velero) ---
+    - name: Create minio namespace
+      ansible.builtin.shell: kubectl create namespace minio --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install MinIO
+      ansible.builtin.shell: |
+        helm upgrade --install minio minio/minio \
+          --namespace minio \
+          --set mode=standalone \
+          --set replicas=1 \
+          --set persistence.size=20Gi \
+          --set rootUser=minioadmin \
+          --set rootPassword=minioadmin123 \
+          --set resources.requests.memory=512Mi \
+          --set consoleIngress.enabled=false \
+          --wait --timeout 5m
+
+    - name: Wait for MinIO to be ready
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=ready pod -l app=minio \
+          -n minio --timeout=300s
+
+    # --- Velero ---
+    - name: Create velero namespace
+      ansible.builtin.shell: kubectl create namespace velero --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Create Velero credentials file
+      ansible.builtin.copy:
+        dest: /tmp/velero-credentials
+        content: |
+          [default]
+          aws_access_key_id = minioadmin
+          aws_secret_access_key = minioadmin123
+        mode: "0600"
+
+    - name: Install Velero
+      ansible.builtin.shell: |
+        helm upgrade --install velero vmware-tanzu/velero \
+          --namespace velero \
+          --values /vagrant/helm-values/velero-values.yaml \
+          --wait --timeout 5m
+
+    - name: Print Velero info
+      ansible.builtin.debug:
+        msg: |
+          Velero + MinIO 已部署完成！
+          - 建立備份: velero backup create my-backup --include-namespaces=default
+          - 查看備份: velero backup get
+          - 還原備份: velero restore create --from-backup my-backup
+          - MinIO Console: kubectl port-forward svc/minio-console 9001:9001 -n minio
